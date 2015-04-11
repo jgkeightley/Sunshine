@@ -1,8 +1,10 @@
 package com.jgkeightley.sunshine.app;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.format.Time;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,6 +13,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -26,8 +29,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Created by jordan on 8/04/15.
@@ -59,43 +60,50 @@ public class ForecastFragment extends android.support.v4.app.Fragment {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_refresh) {
-            FetchWeatherTask fetchWeatherTask = new FetchWeatherTask();
-            fetchWeatherTask.execute("94043");
+            updateWeather();
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(LayoutInflater inflater, final ViewGroup container,
                              Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-
-        String[] forecastArray = {
-                "Today - Sunny - 88/63",
-                "Tomorrow - Foggy - 88/63",
-                "Weds - Cloudy - 88/63",
-                "Thurs - Rainy - 88/63",
-                "Fri - Foggy - 88/63",
-                "Sat - Sunny - 88/63",
-        };
-
-        List<String> weekForecast = new ArrayList<String>(
-                Arrays.asList(forecastArray)
-        );
-
         mForecaseAdapter = new ArrayAdapter<>(
                 getActivity(),
                 R.layout.list_item_forecast,
                 R.id.list_item_forecast_textview,
-                weekForecast);
+                new ArrayList<String>());
 
+        View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
         ListView forecastListview = (ListView) rootView.findViewById(R.id.listview_forecast);
         forecastListview.setAdapter(mForecaseAdapter);
+        forecastListview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String forecast = mForecaseAdapter.getItem(position);
+                Intent detailIntent = new Intent(getActivity(), DetailActivity.class);
+                detailIntent.putExtra(Intent.EXTRA_TEXT, forecast);
+                startActivity(detailIntent);
+            }
+        });
 
         return rootView;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
+
+    public void updateWeather() {
+        FetchWeatherTask fetchWeatherTask = new FetchWeatherTask();
+        String location = PreferenceManager.getDefaultSharedPreferences(getActivity())
+                .getString(getString(R.string.pref_location_key),
+                        getString(R.string.pref_location_default));
+        fetchWeatherTask.execute(location);
     }
 
     public class FetchWeatherTask extends AsyncTask<String, Void, String[]>{
@@ -207,6 +215,17 @@ public class ForecastFragment extends android.support.v4.app.Fragment {
          */
         private String formatHighLows(double high, double low) {
             // For presentation, assume the user doesn't care about tenths of a degree.
+            String units = PreferenceManager.getDefaultSharedPreferences(getActivity())
+                    .getString(getString(R.string.pref_units_key),
+                            getString(R.string.pref_units_metric));
+
+            if(units.equalsIgnoreCase(getString(R.string.pref_units_imperial))) {
+                high = (high * 1.8) + 32;
+                low = (low * 1.8) + 32;
+            } else if (!units.equalsIgnoreCase(getString(R.string.pref_units_metric))) {
+                Log.d(LOG_TAG, "Units not found: " + units);
+            }
+
             long roundedHigh = Math.round(high);
             long roundedLow = Math.round(low);
 
