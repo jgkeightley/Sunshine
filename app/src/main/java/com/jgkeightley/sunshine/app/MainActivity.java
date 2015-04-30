@@ -13,18 +13,21 @@ import android.view.MenuItem;
 public class MainActivity extends ActionBarActivity {
 
     private final String LOG_TAG  = MainActivity.class.getSimpleName();
+    private final String FORECASTFRAGMENT_TAG = "FFTAG";
+
+    private String mLocation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        mLocation = Utility.getPreferredLocation(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.container, new ForecastFragment())
+                    .add(R.id.container, new ForecastFragment(), FORECASTFRAGMENT_TAG)
                     .commit();
         }
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -45,8 +48,7 @@ public class MainActivity extends ActionBarActivity {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
         } else if (id == R.id.action_view_map) {
-
-
+            openPreferredLocationInMap();
             return true;
         }
 
@@ -70,6 +72,19 @@ public class MainActivity extends ActionBarActivity {
             startActivity(mapsIntent);
         } else {
             Log.d(LOG_TAG, "Couldn't call " + location + ", no maps app available");
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        String location = Utility.getPreferredLocation(this);
+        if(location != null && !location.equalsIgnoreCase(mLocation)) {
+            ForecastFragment ff = (ForecastFragment) getSupportFragmentManager().findFragmentByTag(FORECASTFRAGMENT_TAG);
+            if(null != ff) {
+                ff.onLocationChanged();
+            }
+            mLocation = location;
         }
     }
 }
